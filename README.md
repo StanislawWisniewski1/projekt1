@@ -1,1 +1,1 @@
-# aplikacja finansowa
+# aplikacja finansowo-inwestycyjna
