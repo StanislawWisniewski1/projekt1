@@ -14,9 +14,10 @@ interface Props {
   transactions: Transaction[];
   lotMatches: LotMatch[];
   baseCurrency: string;
+  onTrade?: (type: "BUY" | "SELL", assetId: string) => void;
 }
 
-export function AssetDetailModal({ open, onClose, holding, transactions, lotMatches, baseCurrency }: Props) {
+export function AssetDetailModal({ open, onClose, holding, transactions, lotMatches, baseCurrency, onTrade }: Props) {
   const [quote, setQuote] = useState<{ price: number; change: number; changePct: number; currency: string } | null>(null);
   const [history, setHistory] = useState<{ date: string; price: number }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +53,40 @@ export function AssetDetailModal({ open, onClose, holding, transactions, lotMatc
   const lots = computeLots(transactions, lotMatches, asset.id);
 
   return (
-    <Modal open={open} onClose={onClose} title={`${asset.ticker} · ${asset.exchange}`} subtitle={asset.name || asset.currency} size="lg">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`${asset.ticker} · ${asset.exchange}`}
+      subtitle={asset.name || asset.currency}
+      size="lg"
+      footer={
+        <>
+          <button className="btn-secondary" onClick={onClose}>Close</button>
+          {onTrade && (
+            <>
+              <button
+                className="btn-secondary text-rose-600 dark:text-rose-400"
+                onClick={() => {
+                  onClose();
+                  onTrade("SELL", asset.id);
+                }}
+              >
+                Sell
+              </button>
+              <button
+                className="btn-primary"
+                onClick={() => {
+                  onClose();
+                  onTrade("BUY", asset.id);
+                }}
+              >
+                Buy More
+              </button>
+            </>
+          )}
+        </>
+      }
+    >
       <div className="space-y-5">
         {/* Quote + key stats */}
         <div className="grid gap-3 sm:grid-cols-3">
@@ -70,8 +104,11 @@ export function AssetDetailModal({ open, onClose, holding, transactions, lotMatc
           </div>
           <div className="card p-4">
             <p className="text-xs text-slate-500 dark:text-slate-400">Position Value</p>
-            <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(holding.marketValue, baseCurrency)}</p>
-            <p className="mt-1 text-xs text-slate-400">{formatNumber(holding.quantity, 4)} shares</p>
+            <p className="mt-1 text-xl font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(holding.marketValueBase, baseCurrency)}</p>
+            <p className="mt-1 text-xs text-slate-400">
+              {formatNumber(holding.quantity, 4)} shares
+              {asset.currency !== baseCurrency && ` · ${formatCurrency(holding.marketValue, asset.currency)}`}
+            </p>
           </div>
           <div className="card p-4">
             <p className="text-xs text-slate-500 dark:text-slate-400">Unrealized P&L</p>

@@ -40,24 +40,24 @@ function uid(): string {
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const [data, setData] = useState<AppData>(emptyData);
-
-  useEffect(() => {
+  const [data, setData] = useState<AppData>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as AppData;
-        setData(parsed);
-      } else {
-        const sample = generateSampleData();
-        setData(sample);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(sample));
+        if (parsed && Array.isArray(parsed.portfolios) && parsed.portfolios.length > 0) {
+          return parsed;
+        }
       }
-    } catch {
       const sample = generateSampleData();
-      setData(sample);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sample));
+      } catch { /* ignore */ }
+      return sample;
+    } catch {
+      return generateSampleData();
     }
-  }, []);
+  });
 
   const persist = useCallback((newData: AppData) => {
     setData(newData);

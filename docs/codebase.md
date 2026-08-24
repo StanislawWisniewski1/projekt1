@@ -38,6 +38,7 @@ projekt1/
     │   └── usePortfolioSummary.ts # Aggregates holdings, cost basis, unrealized/realized P&L, cash balances
     ├── lib/
     │   ├── types.ts             # All TypeScript interfaces, entities, and data models
+    │   ├── tickerCatalog.ts     # Global ticker catalog (US, GPW, Europe, ETFs) for autocomplete search
     │   ├── portfolio.ts         # Portfolio math: lot computation, realized P&L, holdings, TWR snapshots
     │   ├── xtbImport.ts         # XTB statement parser (CSV/XLSX), venue/ticker normalizer, FIFO matching
     │   ├── marketData.ts        # Stooq price fetcher, NBP FX fetcher, fallback quotes, synthetic history
@@ -112,13 +113,14 @@ projekt1/
   - Runs client-side FIFO matching across parsed trades for immediate preview before database commitment.
 
 ### 4.5 Market Data & FX Feed (`src/lib/marketData.ts`)
-- **Stooq Feed**:
-  - Quotes: `https://stooq.com/q/l/?s={sym}&f=sd2t2ohlcv&e=csv`
-  - History: `https://stooq.com/q/d/l/?s={sym}&d1={start}&d2={end}&i=d`
+- **Stooq Feed & Dev Proxy**:
+  - Quotes: `/api/stooq/q/l/?s={sym}&f=sd2t2ohlcv&e=csv` (proxied in `vite.config.ts` to bypass CORS) with direct fallback.
+  - History: `/api/stooq/q/d/l/?s={sym}&d1={start}&d2={end}&i=d`
 - **NBP Currency API**:
   - `https://api.nbp.pl/api/exchangerates/rates/a/{currency}/{start}/{end}/?format=json`
-- **Fallback / Simulation Engine**:
-  - Includes static quotes (`FALLBACK_QUOTES`), static approximations (`fxApprox`), and deterministic pseudo-random market walk generator (`generateSyntheticHistory` via `mulberry32`) for offline demo usage.
+- **Universal Multi-Market Catalog & Fallback Engine**:
+  - Comprehensive baseline market prices for 100+ global assets (US mega-caps, GPW Polish equities, European stocks, and UCITS/US ETFs).
+  - Deterministic realistic price estimation fallback for any unlisted/custom ticker so that 100% of tickers always return a valid, realistic price and change percentage.
 
 ---
 

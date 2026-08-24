@@ -49,10 +49,12 @@ export function HoldingsTable({ holdings, baseCurrency, onSelect }: Props) {
                   <div className="text-xs text-slate-500 dark:text-slate-400">{h.asset.name || h.asset.exchange}</div>
                 </td>
                 <td className="px-3 py-3 text-right tabular-nums">{formatNumber(h.quantity, 4)}</td>
-                <td className="px-3 py-3 text-right tabular-nums text-slate-500 dark:text-slate-400">{formatCurrency(h.avgCost, h.currency)}</td>
-                <td className="px-3 py-3 text-right tabular-nums">{formatCurrency(h.marketPrice, h.currency)}</td>
-                <td className="px-3 py-3 text-right font-medium tabular-nums">{formatCurrency(h.marketValue, baseCurrency)}</td>
-                <td className={`px-3 py-3 text-right tabular-nums ${classForChange(h.dayChangePct)}`}>{formatPct(h.dayChangePct)}</td>
+                <td className="px-3 py-3 text-right font-medium tabular-nums">
+                  <div>{formatCurrency(h.marketValueBase, baseCurrency)}</div>
+                  {h.currency !== baseCurrency && (
+                    <div className="text-[11px] text-slate-400 font-normal">{formatCurrency(h.marketValue, h.currency)}</div>
+                  )}
+                </td>
                 <td className={`px-3 py-3 text-right tabular-nums ${classForChange(h.unrealizedPnl)}`}>
                   <div>{formatCurrency(h.unrealizedPnl, baseCurrency)}</div>
                   <div className="text-xs">{formatPct(h.unrealizedPnlPct)}</div>

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useData } from "@/context/DataContext";
 import { usePortfolioSummary } from "@/hooks/usePortfolioSummary";
 import { useToast } from "@/components/ui/ToastContext";
@@ -18,6 +18,8 @@ import {
   Download, FileUp, Trash2, ArrowUpRight, ArrowDownRight, Banknote,
 } from "lucide-react";
 
+const ACTIVE_PORTFOLIO_KEY = "folio-active-portfolio-id";
+
 export function Dashboard() {
   const {
     portfolios, assets, transactions, lotMatches,
@@ -26,10 +28,26 @@ export function Dashboard() {
     exportData, importData, clearAllData, loadSampleData,
   } = useData();
   const { pushToast } = useToast();
-  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(null);
+
+  const [selectedPortfolioId, setSelectedPortfolioId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(ACTIVE_PORTFOLIO_KEY) || null;
+    } catch {
+      return null;
+    }
+  });
+
+  const selectPortfolio = (id: string) => {
+    setSelectedPortfolioId(id);
+    try {
+      localStorage.setItem(ACTIVE_PORTFOLIO_KEY, id);
+    } catch { /* ignore */ }
+  };
+
   const [portfolioMenuOpen, setPortfolioMenuOpen] = useState(false);
   const [txModalOpen, setTxModalOpen] = useState(false);
   const [txDefaultType, setTxDefaultType] = useState<TransactionType>("BUY");
+  const [txDefaultAssetId, setTxDefaultAssetId] = useState<string | undefined>(undefined);
   const [xtbOpen, setXtbOpen] = useState(false);
   const [lotMatchingOpen, setLotMatchingOpen] = useState(false);
   const [createPortfolioOpen, setCreatePortfolioOpen] = useState(false);
@@ -37,9 +55,21 @@ export function Dashboard() {
   const [tab, setTab] = useState<"holdings" | "transactions">("holdings");
   const importRef = useRef<HTMLInputElement>(null);
 
+  // Validate that selectedPortfolioId exists; if not, default to first portfolio
   const portfolio = useMemo(() => {
     if (portfolios.length === 0) return null;
-    return portfolios.find((p) => p.id === selectedPortfolioId) || portfolios[0];
+    const found = portfolios.find((p) => p.id === selectedPortfolioId);
+    return found || portfolios[0];
+  }, [portfolios, selectedPortfolioId]);
+
+  // Keep localStorage and selectedPortfolioId synced when portfolios change
+  useEffect(() => {
+    if (portfolios.length > 0) {
+      const exists = portfolios.some((p) => p.id === selectedPortfolioId);
+      if (!exists) {
+        selectPortfolio(portfolios[0].id);
+      }
+    }
   }, [portfolios, selectedPortfolioId]);
 
   const summary = usePortfolioSummary(transactions, lotMatches, portfolio?.base_currency || "PLN", portfolio?.id || "");
@@ -61,6 +91,10 @@ export function Dashboard() {
   const handleClear = () => {
     if (confirm("This will permanently delete all your portfolios, transactions, and lot matches. Continue?")) {
       clearAllData();
+      try {
+        localStorage.removeItem(ACTIVE_PORTFOLIO_KEY);
+      } catch { /* ignore */ }
+      setSelectedPortfolioId(null);
       pushToast("success", "All data cleared.");
     }
   };
@@ -75,6 +109,12 @@ export function Dashboard() {
   const handleDeletePortfolio = (id: string) => {
     if (confirm("Delete this portfolio and all its transactions?")) {
       deletePortfolio(id);
+      if (selectedPortfolioId === id) {
+        const remaining = portfolios.filter((p) => p.id !== id);
+        if (remaining.length > 0) {
+          selectPortfolio(remaining[0].id);
+        }
+      }
       pushToast("success", "Portfolio deleted.");
     }
   };
@@ -93,7 +133,7 @@ export function Dashboard() {
         <button className="btn-secondary mt-3 ml-2" onClick={handleLoadSample}>
           <Sparkles size={15} /> Load sample data
         </button>
-        <PortfolioCreateModal open={createPortfolioOpen} onClose={() => setCreatePortfolioOpen(false)} onCreated={(p) => setSelectedPortfolioId(p.id)} />
+        <PortfolioCreateModal open={createPortfolioOpen} onClose={() => setCreatePortfolioOpen(false)} onCreate={addPortfolio} onCreated={(p) => selectPortfolio(p.id)} />
       </div>
     );
   }
@@ -123,7 +163,7 @@ export function Dashboard() {
                   key={p.id}
                   className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors hover:bg-slate-50 dark:hover:bg-slate-800 ${p.id === portfolio!.id ? "text-primary-700 dark:text-primary-400" : "text-slate-700 dark:text-slate-300"}`}
                 >
-                  <button onClick={() => { setSelectedPortfolioId(p.id); setPortfolioMenuOpen(false); }} className="flex-1 text-left">
+                  <button onClick={() => { selectPortfolio(p.id); setPortfolioMenuOpen(false); }} className="flex-1 text-left">
                     <span className="font-medium">{p.name}</span>
                     <span className="ml-2 text-xs text-slate-400">{p.base_currency}</span>
                   </button>
@@ -151,16 +191,16 @@ export function Dashboard() {
             <GitCompare size={15} /> Lot Matching
           </button>
           <div className="inline-flex rounded-lg border border-slate-200 p-0.5 dark:border-slate-800">
-            <button onClick={() => { setTxDefaultType("BUY"); setTxModalOpen(true); }} className="btn-ghost rounded-md px-3 py-1.5 text-sm">
+            <button onClick={() => { setTxDefaultAssetId(undefined); setTxDefaultType("BUY"); setTxModalOpen(true); }} className="btn-ghost rounded-md px-3 py-1.5 text-sm">
               <Plus size={15} /> Buy
             </button>
-            <button onClick={() => { setTxDefaultType("SELL"); setTxModalOpen(true); }} className="btn-ghost rounded-md px-3 py-1.5 text-sm">
+            <button onClick={() => { setTxDefaultAssetId(undefined); setTxDefaultType("SELL"); setTxModalOpen(true); }} className="btn-ghost rounded-md px-3 py-1.5 text-sm">
               Sell
             </button>
-            <button onClick={() => { setTxDefaultType("DIVIDEND"); setTxModalOpen(true); }} className="btn-ghost rounded-md px-3 py-1.5 text-sm">
+            <button onClick={() => { setTxDefaultAssetId(undefined); setTxDefaultType("DIVIDEND"); setTxModalOpen(true); }} className="btn-ghost rounded-md px-3 py-1.5 text-sm">
               Div
             </button>
-            <button onClick={() => { setTxDefaultType("CASH_IN"); setTxModalOpen(true); }} className="btn-ghost rounded-md px-3 py-1.5 text-sm">
+            <button onClick={() => { setTxDefaultAssetId(undefined); setTxDefaultType("CASH_IN"); setTxModalOpen(true); }} className="btn-ghost rounded-md px-3 py-1.5 text-sm">
               Cash
             </button>
           </div>
@@ -268,6 +308,7 @@ export function Dashboard() {
         portfolio={portfolio!}
         assets={assets}
         defaultType={txDefaultType}
+        defaultAssetId={txDefaultAssetId}
         onSave={(tx) => { addTransaction(tx); pushToast("success", "Transaction recorded."); }}
         onCreateAsset={addAsset}
       />
@@ -307,8 +348,13 @@ export function Dashboard() {
         transactions={transactions}
         lotMatches={lotMatches}
         baseCurrency={portfolio!.base_currency}
+        onTrade={(tradeType, assetId) => {
+          setTxDefaultType(tradeType);
+          setTxDefaultAssetId(assetId);
+          setTxModalOpen(true);
+        }}
       />
-      <PortfolioCreateModal open={createPortfolioOpen} onClose={() => setCreatePortfolioOpen(false)} onCreate={addPortfolio} onCreated={(p) => setSelectedPortfolioId(p.id)} />
+      <PortfolioCreateModal open={createPortfolioOpen} onClose={() => setCreatePortfolioOpen(false)} onCreate={addPortfolio} onCreated={(p) => selectPortfolio(p.id)} />
     </div>
   );
 }
